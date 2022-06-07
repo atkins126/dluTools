@@ -1,13 +1,6 @@
 unit dluSplitString;
 
 {$I dluOptions.inc}
-//{$IFDEF FPC}
-//  {$mode objfpc}{$H+}
-//  {$modeswitch UNICODESTRINGS+}
-//{$ELSE}
-//  {$MESSAGE HINT 'Tested only for LAZARUS!'}
-//{$ENDIF}
-
 
 interface
 
@@ -27,8 +20,8 @@ begin
          Delimiter     := ASeparator;
          QuoteChar     := '"';
          DelimitedText := ASource;
-         SetLength( Result, Count );
-         for i := 0 to Count-1 do Result[i] := Strings[i];
+         SetLength( Result{%H-}, Count );
+         for i := 0 to Count-1 do Result[i] := {%H-}Strings[i];
       finally
          Free;
       end;

@@ -40,7 +40,8 @@ type
      fTabletPC             : boolean;
      fSuites               : TStrings;
      fLang                 : WideString;
-     procedure AppendToName( const AText: WideString );
+     procedure AppendToName( const AText: AnsiString ); overload;
+     procedure AppendToName( const AText: WideString ); overload;
      procedure AppendToNameIf( const ACond: boolean; const AText_true, AText_false: WideString );
      procedure Prepare_Win32s_Platform;
      procedure Prepare_Win32_Windows_Platform;
@@ -262,7 +263,7 @@ type TGetNativeSystemInfo = procedure( var AParam: Windows.TSystemInfo ); stdcal
 type TGetProductInfo = function( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean; stdcall;
 
 function CustomVersionFunc( const ALibrary, AFuncName: string; var AParam: TuOSVersionInfoExW ): boolean;
-  var DLLWnd : THandle;
+  var DLLWnd : THandle = 0;
       xFunc  : pointer;
 begin
    Result := GetWindowsFunction( ALibrary, AFuncName, DllWnd, xFunc );
@@ -428,7 +429,7 @@ procedure TWinVerSpec.Prepare_Win32_NT_Platform;
       nsi : Windows.TSystemInfo;
       n   : integer;
 begin
-
+   osi := Default( TuOSVersionInfoExW );
    if not GetVersionEx( osi ) then begin
       self.fName := 'Unknown';
       exit;
@@ -556,6 +557,11 @@ begin
 
    end;
 
+end;
+
+procedure TWinVerSpec.AppendToName(const AText: AnsiString);
+begin
+  AppendToName( WideString( AText ) );
 end;
 
 procedure TWinVerSpec.AppendToName(const AText: WideString);
