@@ -62,6 +62,7 @@ type
      procedure Prepare_Win32_NT_Platform;
      procedure TryReadFromRegistry;
      function GetCompilationInfo: WideString;
+     function GetWindowsRelease: UnicodeString;
    public
      constructor Create;
      destructor Destroy; override;
@@ -99,6 +100,8 @@ type
      property ReleaseId            : string     read fReleaseId;
      property UBR                  : integer    read fUBR;
      property InstallDate          : TDateTime  read fInstallDate;
+     //
+     property WindowsRelease       : UnicodeString read GetWindowsRelease;
 
 end;
 
@@ -490,6 +493,39 @@ begin
                    [ fMajorVersion, fMinorVersion, fBuildNumber, s, fCSDVersion ] ) );
 end;
 
+function TWinVerSpec.GetWindowsRelease: UnicodeString;
+begin
+   Result := '';
+   // https://learn.microsoft.com/en-us/windows/release-health/release-information
+   // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
+   if (fMajorVersion = 10) and (fMinorVersion = 0) and (fProductType = VER_NT_WORKSTATION) then begin
+        case fBuildNumber of
+           // windows 11
+           22000 : Result := '21H2';
+           22621 : Result := '22H2';
+           22631 : Result := '23H2';
+           26100 : Result := '24H2';
+           // windows 10
+           19045 : Result := '22H2';
+           19044 : Result := '21H2';
+           19043 : Result := '21H1';
+           19042 : Result := '20H2';
+           19041 : Result := '2004';
+           18363 : Result := '1909';
+           18362 : Result := '1903';
+           17763 : Result := '1809';
+           17134 : Result := '1803';
+           16299 : Result := '1709';
+           15063 : Result := '1703';
+           14393 : Result := '1607';
+           10586 : Result := '1511';
+           10240 : Result := '1507';
+
+           else    Result := '????';
+        end;
+   end;
+end;
+
 {
 https://stackoverflow.com/questions/8144599/getting-the-windows-version
 https://wiki.freepascal.org/WindowsVersion
@@ -587,9 +623,12 @@ begin
 
       // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
       if fMinorVersion = 0 then begin
-         if fProductType = VER_NT_WORKSTATION
-            then AppendToNameIf( fBuildNumber >=22000, '11', '10' )
-            else AppendToName( 'Server 2016' );
+         if fProductType = VER_NT_WORKSTATION then begin
+            if fBuildNumber < 22000
+               then AppendToName( '10' )
+               else AppendToName( '11' );
+            AppendToName( GetWindowsRelease() );
+         end else AppendToName( 'Server 2016' );
       end else
          fName := UnknownSystem( 'Unknown Windows version', osi );
 
