@@ -10,11 +10,13 @@ unit dluFileInfo;
 
 interface
 
-type
+uses Classes;
+
+type TPEType = (pe_unknown, pe_32bit, pe_64bit );
+const cPEType: array[ TPEType ] of string = ( 'unknown', '32-bit', '64-bit' );
 
 { TFileVersionInfo }
-
- TFileVersionInfo = record
+type TFileVersionInfo = record
     public
        FileName         : string;
        //
@@ -55,22 +57,22 @@ type
        constructor Create( const AFileName: String );
        procedure ReadFileVersionInfo( const AFileName: string );
        procedure Clear();
+       procedure AsString( const AStrings: TStrings );
     strict private
        function ReadStdFileInfo(): boolean;
        //
-  end;
+end;
 
 function GetFileInfo( const AFileName: string = '' ): TFileVersionInfo;
 
 // alternative version - only for version info
 function GetFileVersion( const AFileName: string = '' ): string;
 
-type TPEType = (pe_unknown, pe_32bit, pe_64bit );
-const cPEType: array[ TPEType ] of string = ( 'unknown', '32-bit', '64-bit' );
+function GetPEType( const APath: UnicodeString ): TPEType; overload;
+function GetPEType( const APath: AnsiString ): TPEType; overload;
 
-function GetPEType( const APath: WideString ): TPEType;
-function GetPETypeStr( const APath: WideString ): string;
-
+function GetPETypeStr( const APath: UnicodeString ): UnicodeString; overload;
+function GetPETypeStr( const APath: AnsiString ): AnsiString; overload;
 
 function AttrWin32( const x: Cardinal ): string;
 
@@ -101,10 +103,63 @@ const VFT2_DRV_VERSIONED_PRINTER = $0c;
 
 {$ENDIF}
 
-var FileTypeDict    : IuDictionary;
-var FileSubTypeDict : IuDictionary;
-var FontTypeDict    : IuDictionary;
+var FileTypeDict    : IuDictionary = nil;
+var FileSubTypeDict : IuDictionary = nil;
+var FontTypeDict    : IuDictionary = nil;
 
+function GetFileTypeDict(): IuDictionary;
+begin
+   if not Assigned( FileTypeDict ) then begin
+      FileTypeDict := TuxDictionary.Create( 'Unknown file type value (%d)' );
+      with FileTypeDict do begin
+         Add( VFT_UNKNOWN,    'Unknown'             );
+         Add( VFT_APP,        'Application'         );
+         Add( VFT_DLL,        'DLL'                 );
+         Add( VFT_DRV,        'DRV'                 );
+         Add( VFT_FONT,       'Font'                 );
+         Add( VFT_VXD,        'VXD'                 );
+         Add( VFT_STATIC_LIB, 'Static-link Library' );
+      end;
+   end;
+   Result := FileTypeDict;
+end;
+
+function GetFileSubTypeDict(): IuDictionary;
+begin
+   if not Assigned( FileSubTypeDict ) then begin
+      FileSubTypeDict := TuxDictionary.Create( 'Unknown file subtype value (%d)' );
+      with FileSubTypeDict do begin
+         Add( VFT2_UNKNOWN,               'Unknown Driver'           );
+         Add( VFT2_DRV_PRINTER,           'Printer Driver'           );
+         Add( VFT2_DRV_KEYBOARD,          'Keyboard Driver'          );
+         Add( VFT2_DRV_LANGUAGE,          'Language Driver'          );
+         Add( VFT2_DRV_DISPLAY,           'Display Driver'           );
+         Add( VFT2_DRV_MOUSE,             'Mouse Driver'             );
+         Add( VFT2_DRV_NETWORK,           'Network Driver'           );
+         Add( VFT2_DRV_SYSTEM,            'System Driver'            );
+         Add( VFT2_DRV_INSTALLABLE,       'InstallableDriver'        );
+         Add( VFT2_DRV_SOUND,             'Sound Driver'             );
+         Add( VFT2_DRV_COMM,              'Communications Driver'    );
+         Add( VFT2_DRV_INPUTMETHOD,       'Input method (?)'         );
+         Add( VFT2_DRV_VERSIONED_PRINTER, 'Versioned Printer Driver' );
+      end;
+   end;
+   Result := FileSubTypeDict;
+end;
+
+function GetFontTypeDict(): IuDictionary;
+begin
+   if not Assigned( FontTypeDict ) then begin
+      FontTypeDict := TuxDictionary.Create( 'Unknown font type value (%d)' );
+      with FontTypeDict do begin
+         Add( VFT2_UNKNOWN,         'Unknown Font'  );
+         Add( VFT2_FONT_RASTER,     'Raster Font'   );
+         Add( VFT2_FONT_VECTOR,     'Vector Font'   );
+         Add( VFT2_FONT_TRUETYPE,   'Truetype Font' );
+      end;
+   end;
+   Result := FontTypeDict;
+end;
 
 function xFileTimeToDateTime( const AFileTime : TFileTime ) : TDateTime;
    var _time    : TFileTime;
@@ -220,6 +275,32 @@ begin
 
 end;
 
+procedure TFileVersionInfo.AsString( const AStrings : TStrings) ;
+begin
+   if IsVersionInfo then begin
+
+      AStrings.AddPair( 'File Type',          AnsiString( self.FileType + ' ' + GetPETypeStr( self.FileName ) ) );
+      AStrings.AddPair( 'File Function',      AnsiString( self.FileFunction     ) );
+      AStrings.AddPair( 'File Exe Type',      AnsiString( self.FileExeType      ) );
+      AStrings.AddPair( 'Company Name',       AnsiString( self.CompanyName      ) );
+      AStrings.AddPair( 'File Description',   AnsiString( self.FileDescription  ) );
+      AStrings.AddPair( 'File Version',       AnsiString( self.FileVersion      ) );
+      AStrings.AddPair( 'Internal Name',      AnsiString( self.InternalName     ) );
+      AStrings.AddPair( 'Legal CopyRight',    AnsiString( self.LegalCopyRight   ) );
+      AStrings.AddPair( 'Legal TradeMarks',   AnsiString( self.LegalTradeMarks  ) );
+      AStrings.AddPair( 'Original File Name', AnsiString( self.OriginalFileName ) );
+      AStrings.AddPair( 'Product Name',       AnsiString( self.ProductName      ) );
+      AStrings.AddPair( 'Product Version',    AnsiString( self.ProductVersion   ) );
+      AStrings.AddPair( 'Comments',           AnsiString( self.Comments         ) );
+      AStrings.AddPair( 'Special BuildStr',   AnsiString( self.SpecialBuildStr  ) );
+      AStrings.AddPair( 'Private BuildStr',   AnsiString( self.PrivateBuildStr  ) );
+   end else
+      AStrings.AddPair( 'Version info', '--- not available'    );
+
+
+
+end;
+
 function TFileVersionInfo.ReadStdFileInfo(): boolean;
   var MyFd   : TWin32FindDataW;
 begin
@@ -256,9 +337,9 @@ procedure TFileVersionInfo.ReadFileVersionInfo(const AFileName: string);
           VFT_UNKNOWN,
           VFT_APP,
           VFT_DLL,
-          VFT_STATIC_LIB : Result := UnicodeString( FileTypeDict.Value( dwFileType ) );
-          VFT_DRV        : Result := UnicodeString( FileSubTypeDict.Value( dwFileSubtype ) );
-          VFT_FONT       : Result := UnicodeString( FontTypeDict.Value( dwFileSubtype ) );
+          VFT_STATIC_LIB : Result := UnicodeString( GetFileTypeDict().Value( dwFileType ) );
+          VFT_DRV        : Result := UnicodeString( GetFileSubTypeDict().Value( dwFileSubtype ) );
+          VFT_FONT       : Result := UnicodeString( GetFontTypeDict().Value( dwFileSubtype ) );
           VFT_VXD        : Result := 'Virtual Device Identifier = ' +  UnicodeString( IntToHex( dwFileSubtype, 8 ) );
           else             Result := 'Unknown value';
         end;
@@ -426,7 +507,7 @@ begin
 end;
 
 
-function GetPEType(const APath: WideString): TPEType;
+function GetPEType(const APath: UnicodeString): TPEType;
   var hFile,
       hFileMap : THandle;
       PMapView : Pointer;
@@ -477,49 +558,19 @@ begin
    UnmapViewOfFile( PMapView );
 end;
 
-function GetPETypeStr( const APath: WideString ): string;
+function GetPEType( const APath : AnsiString) : TPEType;
+begin
+   Result := GetPEType( UnicodeString( APath ) );
+end;
+
+function GetPETypeStr( const APath: UnicodeString ): UnicodeString;
 begin
    Result := cPEType[ GetPEType( APath ) ];
 end;
 
-initialization
-  FileTypeDict := TuxDictionary.Create( 'Unknown file type value (%d)' );
-  with FileTypeDict do begin
-     Add( VFT_UNKNOWN,    'Unknown'             );
-     Add( VFT_APP,        'Application'         );
-     Add( VFT_DLL,        'DLL'                 );
-     Add( VFT_STATIC_LIB, 'Static-link Library' );
-  end;
-
-  FileSubTypeDict := TuxDictionary.Create( 'Unknown file subtype value (%d)' );
-  with FileSubTypeDict do begin
-     Add( VFT2_UNKNOWN,               'Unknown Driver'           );
-     Add( VFT2_DRV_PRINTER,           'Printer Driver'           );
-     Add( VFT2_DRV_KEYBOARD,          'Keyboard Driver'          );
-     Add( VFT2_DRV_LANGUAGE,          'Language Driver'          );
-     Add( VFT2_DRV_DISPLAY,           'Display Driver'           );
-     Add( VFT2_DRV_MOUSE,             'Mouse Driver'             );
-     Add( VFT2_DRV_NETWORK,           'Network Driver'           );
-     Add( VFT2_DRV_SYSTEM,            'System Driver'            );
-     Add( VFT2_DRV_INSTALLABLE,       'InstallableDriver'        );
-     Add( VFT2_DRV_SOUND,             'Sound Driver'             );
-     Add( VFT2_DRV_COMM,              'Communications Driver'    );
-     Add( VFT2_DRV_INPUTMETHOD,       'Input method (?)'         );
-     Add( VFT2_DRV_VERSIONED_PRINTER, 'Versioned Printer Driver' );
-  end;
-
-  FontTypeDict := TuxDictionary.Create( 'Unknown font type value (%d)' );
-  with FontTypeDict do begin
-     Add( VFT2_UNKNOWN,         'Unknown Font'  );
-     Add( VFT2_FONT_RASTER,     'Raster Font'   );
-     Add( VFT2_FONT_VECTOR,     'Vector Font'   );
-     Add( VFT2_FONT_TRUETYPE,   'Truetype Font' );
-  end;
-
-
-finalization
-  //FileTypeDict.Free;
-  //FileSubTypeDict.Free;
-  //FontTypeDict.Free;
+function GetPETypeStr( const APath : AnsiString) : AnsiString;
+begin
+   Result := AnsiString( cPEType[ GetPEType( APath ) ] );
+end;
 
 end.
